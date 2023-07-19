@@ -21,41 +21,23 @@ type DATA struct {
 	Properties Properties `json:"properties"`
 }
 
-func Insert(c echo.Context) error {
+func Insert(c echo.Context, db *sql.DB) error {
 	data := new(DATA)
 	c.Bind(data)
 
-	db, err := sql.Open("mysql", "root:@tcp(localhost:3306)/ArticlesDB")
-
-	if (err != nil) {
-		panic(err.Error)
-	}
-
-	defer db.Close()
-
 	for Heading, Value := range data.Properties.Elements {
-		query, err := db.Query(`INSERT INTO Articles VALUES ("` + data.Properties.Name + `", "` + Heading + `", "` + Value.Value + `")`)
+		_, err := db.Exec(`INSERT INTO Articles VALUES ("` + data.Properties.Name + `", "` + Heading + `", "` + Value.Value + `")`)
 
 		if (err != nil) {
 			panic(err.Error)
 		}
-	
-		defer query.Close()
 	}
 
 	return c.String(http.StatusOK, "INSERTED TO TABLE")
 }
 
-func Display(c echo.Context) error {
+func Display(c echo.Context, db *sql.DB) error {
 	Name := c.Param("name")
-
-	db, err := sql.Open("mysql", "root:@tcp(localhost:3306)/ArticlesDB")
-
-	if (err != nil) {
-		panic(err.Error)
-	}
-
-	defer db.Close()
 
 	query, err := db.Query(`SELECT Heading, Value FROM Articles WHERE Name = "` + Name + `"`)
 
@@ -83,17 +65,9 @@ func Display(c echo.Context) error {
 	return c.JSON(http.StatusOK, data)
 }
 
-func Delete(c echo.Context) error {
-	Name := c.FormValue("name")
-
-	db, err := sql.Open("mysql", "root:@tcp(localhost:3306)/ArticlesDB")
-
-	if (err != nil) {
-		panic(err.Error)
-	}
-
-	defer db.Close()
-
+func Delete(c echo.Context, db *sql.DB) error {
+	Name := c.Param("name")
+	
 	query, err := db.Query(`DELETE FROM Articles WHERE Name = "` + Name + `"`)
 
 	if (err != nil) {
@@ -110,11 +84,25 @@ func main() {
 
 	e.Use(middleware.CORS())
 
-	e.POST("/insert", Insert)
+	db, err := sql.Open("mysql", "root:@tcp(localhost:3306)/ArticlesDB")
 
-	e.GET("/:name", Display)
+	if (err != nil) {
+		panic(err.Error)
+	}
 
-	e.POST("/delete", Delete)
+	defer db.Close()
+
+	e.POST("/:name", func(c echo.Context) error {
+		return Insert(c, db)
+	})
+
+	e.GET("/:name", func(c echo.Context) error {
+		return Display(c, db)
+	})
+
+	e.DELETE("/:name", func(c echo.Context) error {
+		return Delete(c, db)
+	})
 
 	e.Logger.Fatal(e.Start(":1323"))
 }

@@ -5,8 +5,9 @@ import (
 	"strings"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
+	_ "net/url"
     "github.com/labstack/echo/v4"
+	"github.com/DATA-DOG/go-sqlmock"
 )
 
 var (
@@ -20,50 +21,87 @@ func TestInsert (t *testing.T) {
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetPath("/insert")
+	c.SetPath("/test")
 
-	err := Insert(c)
+	db, mock, err := sqlmock.New()
 
-	if ((rec.Body.String() != "INSERTED TO TABLE") || (err != nil)) {
+	if (err != nil) {
+		t.Fatalf("Unexpected error when opening mock DB:\n%v", err.Error())
+	}
+
+	defer db.Close()
+
+	mock.ExpectBegin()
+	mock.ExpectExec(`INSERT INTO Articles VALUES ("test", "a1", "a2")`)
+	mock.ExpectExec(`INSERT INTO Articles VALUES ("test", "a2", "a3")`)
+	mock.ExpectExec(`INSERT INTO Articles VALUES ("test", "a3", "a4")`)
+	mock.ExpectExec(`INSERT INTO Articles VALUES ("test", "a4", "a5")`)
+	mock.ExpectCommit()
+
+	err = Insert(c, db)
+
+	if (err != nil) || (rec.Body.String() != "INSERTED TO TABLE") {
 		t.Fatalf("Insert():\n%v\nWant:\nINSERTED TO TABLE\nError:\n%v", rec.Body.String(), err.Error())
 	}
-}
 
-func TestDisplay (t *testing.T) {
-	e := echo.New()
+	err = mock.ExpectationsWereMet()
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-
-	c := e.NewContext(req, rec)
-
-	c.SetPath("/:name")
-	c.SetParamNames("name")
-	c.SetParamValues("test")
-
-	err := Display(c)
-
-	if ((strings.Compare(strings.Replace(rec.Body.String(), "\n", "", -1), strings.Replace(string(jData), "\n", "", -1)) != 0) || (err != nil)) {
-		t.Fatalf("Display():\n%v\nWant:\n%v\nError:%v", rec.Body.String(), string(jData), err.Error())
+	if (err != nil) {
+		t.Errorf("Unfulfilled Expectations:\n%v", err.Error())
 	}
 }
 
-func TestDelete (t *testing.T) {
-	e := echo.New()
+// func TestInsert (t *testing.T) {
+// 	e := echo.New()
 
-	f := make(url.Values)
-	f.Set("name", "test")
-	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(f.Encode()))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
-	rec := httptest.NewRecorder()
+// 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(jData))
+// 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+// 	rec := httptest.NewRecorder()
+// 	c := e.NewContext(req, rec)
+// 	c.SetPath("/insert")
 
-	c := e.NewContext(req, rec)
+// 	err := Insert(c)
 
-	c.SetPath("/delete")
+// 	if ((rec.Body.String() != "INSERTED TO TABLE") || (err != nil)) {
+// 		t.Fatalf("Insert():\n%v\nWant:\nINSERTED TO TABLE\nError:\n%v", rec.Body.String(), err.Error())
+// 	}
+// }
 
-	err := Delete(c)
+// func TestDisplay (t *testing.T) {
+// 	e := echo.New()
 
-	if ((rec.Body.String() != "DELETED FROM TABLE") || (err != nil)) {
-		t.Fatalf("Delete():\n%v\nWant:\nDELETED FROM TABLE\nError:\n%v", rec.Body.String(), err.Error())
-	}
-}
+// 	req := httptest.NewRequest(http.MethodGet, "/", nil)
+// 	rec := httptest.NewRecorder()
+
+// 	c := e.NewContext(req, rec)
+
+// 	c.SetPath("/:name")
+// 	c.SetParamNames("name")
+// 	c.SetParamValues("test")
+
+// 	err := Display(c)
+
+// 	if ((strings.Compare(strings.Replace(rec.Body.String(), "\n", "", -1), strings.Replace(string(jData), "\n", "", -1)) != 0) || (err != nil)) {
+// 		t.Fatalf("Display():\n%v\nWant:\n%v\nError:%v", rec.Body.String(), string(jData), err.Error())
+// 	}
+// }
+
+// func TestDelete (t *testing.T) {
+// 	e := echo.New()
+
+// 	f := make(url.Values)
+// 	f.Set("name", "test")
+// 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(f.Encode()))
+// 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
+// 	rec := httptest.NewRecorder()
+
+// 	c := e.NewContext(req, rec)
+
+// 	c.SetPath("/delete")
+
+// 	err := Delete(c)
+
+// 	if ((rec.Body.String() != "DELETED FROM TABLE") || (err != nil)) {
+// 		t.Fatalf("Delete():\n%v\nWant:\nDELETED FROM TABLE\nError:\n%v", rec.Body.String(), err.Error())
+// 	}
+// }

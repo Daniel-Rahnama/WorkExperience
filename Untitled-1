@@ -1,7 +1,7 @@
-curl -X POST http://localhost:1323/INSERT \
+curl -X POST http://localhost:1323/test \
   -H 'Content-Type: application/json' \
-  -d '{"properties":{"name":"test","elements":{"a1":{"value":"a2"},"a2":{"value":"a3"},"a3":{"value":"a4"},"a4":{"value":"a5"}}}}'
-
-curl -X POST localhost:1323/DELETE -d 'name=test'
+  -d '{"properties":{"name":"test","elements":{"a1":{"value":"b1"},"a2":{"value":"b2"},"a3":{"value":"b3"},"a4":{"value":"b4"}}}}'
 
 curl localhost:1323/test
+
+curl -X DELETE localhost:1323/test
